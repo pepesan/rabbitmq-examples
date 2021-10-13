@@ -9,6 +9,7 @@ import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.MessagingMessageConverter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -105,6 +106,27 @@ public class RabbitController {
         // Devuelve los resultados
         return new StringResponse(ret);
     }
+    @GetMapping("/recibeCanalComvertido")
+    StringResponse receiveTopicConverted() {
+        String nombreCanal2 = "micanal2";
+        // Crea la factoría
+        connectionFactory = new CachingConnectionFactory();
+        // Crea la conexión de consulta
+        template = new RabbitTemplate(connectionFactory);
+        String ret = null;
+        try {
+            //ret = new String((byte[]) Objects.requireNonNull(template.receiveAndConvert(nombreColaCanal)));
+            ret = (String) template.receiveAndConvert(nombreColaCanal);
+        } catch (AmqpException e) {
+            System.out.println("AMQP");
+            e.printStackTrace();
+        }
+
+        // Devuelve los resultados
+        return new StringResponse(ret);
+    }
+
+
 
 
 }
