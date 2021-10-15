@@ -1,22 +1,15 @@
 package com.cursosdedesarrollo.rabbitmqexamples.controllers;
 
+import com.cursosdedesarrollo.rabbitmqexamples.model.StringRequest;
 import com.cursosdedesarrollo.rabbitmqexamples.model.StringResponse;
-import com.rabbitmq.client.Channel;
+import com.google.gson.Gson;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
-import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.amqp.support.converter.MessagingMessageConverter;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import org.springframework.web.bind.annotation.*;
 
 
 @RestController
@@ -34,11 +27,12 @@ public class RabbitController {
     StringResponse sendQueue(@PathVariable String msg) {
         // System.out.println(msg);
         // Crea la factoría
-        connectionFactory = new CachingConnectionFactory();
+        connectionFactory = new CachingConnectionFactory(
+                "localhost", 5672);
         // Crea la conexión de administración
         AmqpAdmin admin = new RabbitAdmin(connectionFactory);
         // Declara la cola
-        admin.declareQueue(new Queue(nombreCola));
+        admin.declareQueue(new Queue(nombreCola, true));
         // Crea la conexión de consulta
         template = new RabbitTemplate(connectionFactory);
         // Manda el mensaje a la cola
@@ -63,11 +57,47 @@ public class RabbitController {
         // Devuelve los resultados
         return new StringResponse(ret);
     }
+    @PostMapping("/mandaColaJson")
+    StringResponse sendQueueJson(@RequestBody StringRequest mensaje) {
+        // System.out.println(msg);
+        // Crea la factoría
+        connectionFactory = new CachingConnectionFactory(
+                "localhost", 5672);
+        // Crea la conexión de administración
+        AmqpAdmin admin = new RabbitAdmin(connectionFactory);
+        // Declara la cola
+        admin.declareQueue(new Queue(nombreCola, true));
+        // Crea la conexión de consulta
+        template = new RabbitTemplate(connectionFactory);
+        // Manda el mensaje a la cola
+        template.convertAndSend(nombreCola, new Gson().toJson(mensaje));
+        // Devuleve los resultados
+        return new StringResponse(mensaje.msg);
+    }
+    @GetMapping("/recibeColaJson")
+    StringRequest receiveQueueJson() {
+        // Crea la factoría
+        connectionFactory = new CachingConnectionFactory();
+        // Crea la conexión de consulta
+        template = new RabbitTemplate(connectionFactory);
+        StringRequest request = null;
+        try {
+            String ret = (String) template.receiveAndConvert(nombreCola);
+            request = new Gson().fromJson(ret, StringRequest.class);
+        } catch (AmqpException e) {
+            System.out.println("AMQP");
+            e.printStackTrace();
+        }
+        // Devuelve los resultados
+        return request;
+    }
 
     @GetMapping("/mandaCanal/{msg}")
     StringResponse sendTopic(@PathVariable String msg) {
         // Crea la factoría
-        connectionFactory = new CachingConnectionFactory("localhost", 5672);
+        connectionFactory = new CachingConnectionFactory(
+                "localhost",
+                5672);
         // Crea la conexión de administración
         AmqpAdmin admin = new RabbitAdmin(connectionFactory);
         // Declara la canal
@@ -76,7 +106,10 @@ public class RabbitController {
         // Declara la cola del canal
         Queue miColaCanal = new Queue(nombreColaCanal);
         admin.declareQueue(miColaCanal);
-        Binding binding = BindingBuilder.bind(miColaCanal).to(miCanal).with("foo.bar.#");
+        Binding binding = BindingBuilder
+                .bind(miColaCanal)
+                .to(miCanal)
+                .with("foo.bar.#");
         admin.declareBinding(binding);
         // Crea la conexión de consulta
         template = new RabbitTemplate(connectionFactory);
@@ -89,7 +122,6 @@ public class RabbitController {
     }
     @GetMapping("/recibeCanal")
     StringResponse receiveTopic() {
-        String nombreCanal2 = "micanal2";
         // Crea la factoría
         connectionFactory = new CachingConnectionFactory();
         // Crea la conexión de consulta
